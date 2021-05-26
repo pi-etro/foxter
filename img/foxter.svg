@@ -7,13 +7,13 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="822.85419mm"
-   height="285.75mm"
-   viewBox="0 0 822.85419 285.75"
+   width="801.6358mm"
+   height="264.58328mm"
+   viewBox="0 0 801.63581 264.58328"
    version="1.1"
    id="svg2366"
    inkscape:version="1.0.2 (1.0.2+r75+1)"
-   sodipodi:docname="teste.svg">
+   sodipodi:docname="foxter.svg">
   <defs
      id="defs2360" />
   <sodipodi:namedview
@@ -23,17 +23,17 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.49497475"
-     inkscape:cx="578.38492"
-     inkscape:cy="505.64861"
+     inkscape:zoom="0.175"
+     inkscape:cx="1417.4269"
+     inkscape:cy="1124.0757"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
      inkscape:window-width="1366"
-     inkscape:window-height="735"
+     inkscape:window-height="705"
      inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:window-y="798"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata2363">
@@ -51,7 +51,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-29.136942,-72.327225)">
+     transform="translate(-39.746122,-82.910585)">
     <path
        style="fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#502d16;stroke-width:18.8452;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="path1710-0-1-3-3"
