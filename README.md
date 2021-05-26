@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/pi-etro/foxter">
-    <img src="https://raw.githubusercontent.com/pi-etro/foxter/main/img/foxter.svg" width="500">
+    <img src="https://raw.githubusercontent.com/pi-etro/foxter/main/img/foxter.svg" width="456">
   </a>
 </p>
 <p align="center">
