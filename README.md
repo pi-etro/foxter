@@ -17,3 +17,4 @@ Foxter is a P2P program for large file transfers.
 This project was developed for the UFABC Distributed Systems course, in which each student implemented a simplified version of [Napster](https://en.wikipedia.org/wiki/Napster_(pay_service)).
 
 **DISCLAIMER:** No 🦊 were injured during the development of this program.
+
