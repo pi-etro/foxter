@@ -5,12 +5,11 @@ Recebe entrada pelo teclado do endereço IP, porta default 10098
 */
 
 import java.util.Scanner;
-import java.net.DatagramSocket;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
+import java.net.*;
+import java.io.*;
 import Mensagem.*;
 
-//@SuppressWarnings("resource") // removes never closer warnings
+@SuppressWarnings("resource") // removes never closer warnings
 
 public class Servidor {
 
@@ -21,22 +20,39 @@ public class Servidor {
 
 		// address input
 		/*
-		Scanner input = new Scanner(System.in);
-		System.out.print("Entre com o endereço IP do servidor: ");
-		Servidor.serverAddress = input.nextLine();
-		input.close();
-		Servidor.serverAddress = "127.0.0.1"; // temporario
-		*/
+		 * Scanner input = new Scanner(System.in);
+		 * System.out.print("Entre com o endereço IP do servidor: ");
+		 * Servidor.serverAddress = input.nextLine(); input.close();
+		 * Servidor.serverAddress = "127.0.0.1"; // temporario
+		 */
 
 		DatagramSocket serverSocket = new DatagramSocket(serverPort);
 
 		// awaits peers contact
 		while (true) {
-			byte[] recBuffer = new byte[1024];
-			DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
-			serverSocket.receive(recPacket); // blocking
-			ClientHandler peer = new ClientHandler(recPacket);
-			peer.start();
+			// byte[] recBuffer = new byte[1024];
+			// DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
+			// serverSocket.receive(recPacket); // blocking
+
+			try {
+				// awaits server contact
+				byte[] recBuffer = new byte[1024];
+				DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
+
+				serverSocket.receive(recPacket); // blocking
+
+				ByteArrayInputStream byteStream = new ByteArrayInputStream(recBuffer);
+				ObjectInputStream objectIn = new ObjectInputStream(new BufferedInputStream(byteStream));
+				// ObjectInputStream objectIn = new ObjectInputStream(new
+				// ByteArrayInputStream(recPacket));
+				Mensagem resposta = (Mensagem) objectIn.readObject();
+				// objectIn.close();
+				System.out.println(resposta.getMessage());
+			} catch (Exception e) {
+
+			}
+			// ClientHandler peer = new ClientHandler(recPacket);
+			// peer.start();
 		}
 	}
 }
