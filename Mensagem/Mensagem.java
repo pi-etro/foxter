@@ -1,11 +1,12 @@
 package Mensagem;
 
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.io.Serializable;
 
 public class Mensagem implements Serializable{
 	private String message = " ";
-	private String address;
+	private InetAddress address;
 	private int port;
 	private ArrayList<String> list;
 
@@ -17,11 +18,11 @@ public class Mensagem implements Serializable{
 		this.message = m;
 	}
 
-	public String getAddress(){
+	public InetAddress getAddress(){
 		return this.address;
 	}
 
-	public void setAddress(String a){
+	public void setAddress(InetAddress a){
 		this.address = a;
 	}
 
@@ -39,5 +40,9 @@ public class Mensagem implements Serializable{
 
 	public void setList(ArrayList<String> l){
 		this.list = l;
+	}
+
+	public void addFile(String s){
+		this.list.add(s);
 	}
 }

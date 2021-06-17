@@ -1,12 +1,6 @@
-
-/*
-Inicializacao:
-Recebe entrada pelo teclado do endereço IP, porta default 10098
-*/
-
-import java.util.Scanner;
-import java.net.*;
+import java.util.*;
 import java.io.*;
+import java.net.*;
 import Mensagem.*;
 
 @SuppressWarnings("resource") // removes never closer warnings
@@ -14,80 +8,97 @@ import Mensagem.*;
 public class Servidor {
 
 	public static String serverAddress;
-	public static int serverPort = 10098;
+	public static int serverPort = 10098; // default server port
 
 	public static void main(String args[]) throws Exception {
 
 		// address input
-		/*
-		 * Scanner input = new Scanner(System.in);
-		 * System.out.print("Entre com o endereço IP do servidor: ");
-		 * Servidor.serverAddress = input.nextLine(); input.close();
-		 * Servidor.serverAddress = "127.0.0.1"; // temporario
-		 */
+		// Scanner input = new Scanner(System.in);
+		// System.out.print("Entre com o endereço IP do servidor: ");
+		// Servidor.serverAddress = input.nextLine();
+		// input.close();
 
 		DatagramSocket serverSocket = new DatagramSocket(serverPort);
 
-		// awaits peers contact
+		// waits peers UDP contact
 		while (true) {
-			// byte[] recBuffer = new byte[1024];
-			// DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
-			// serverSocket.receive(recPacket); // blocking
-
 			try {
-				// awaits server contact
 				byte[] recBuffer = new byte[1024];
 				DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
-
+				System.out.print("Esperando resposta");
 				serverSocket.receive(recPacket); // blocking
 
-				ByteArrayInputStream byteStream = new ByteArrayInputStream(recBuffer);
-				ObjectInputStream objectIn = new ObjectInputStream(new BufferedInputStream(byteStream));
-				// ObjectInputStream objectIn = new ObjectInputStream(new
-				// ByteArrayInputStream(recPacket));
-				Mensagem resposta = (Mensagem) objectIn.readObject();
-				// objectIn.close();
-				System.out.println(resposta.getMessage());
+				// initialize a thread for this request
+				ClientHandler peer = new ClientHandler(recPacket, serverSocket);
+				peer.start();
 			} catch (Exception e) {
 
 			}
-			// ClientHandler peer = new ClientHandler(recPacket);
-			// peer.start();
+		}
+	}
+
+	// serialize and send Mensagem object
+	public static void send(Mensagem m, DatagramSocket s, InetAddress a, int p) {
+		try {
+			// serialize Mensagem object
+			ByteArrayOutputStream byteStream = new ByteArrayOutputStream(1024);
+			ObjectOutputStream objectOut = new ObjectOutputStream(new BufferedOutputStream(byteStream));
+			objectOut.flush();
+			objectOut.writeObject(m);
+			objectOut.flush();
+			byte[] sendData = byteStream.toByteArray();
+
+			// send packet
+			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, a, p);
+			s.send(sendPacket);
+			objectOut.close();
+		} catch (Exception e) {
+
 		}
 	}
 }
 
 class ClientHandler extends Thread {
 
-	public InetAddress clientAddress;
-	public int clientPort;
-	public String clientMessage;
+	public Mensagem requisicao;
+	public DatagramSocket serverSocket;
 
-	public ClientHandler(DatagramPacket recPacket) {
-		// unpack datagram
-		this.clientAddress = recPacket.getAddress();
-		this.clientPort = recPacket.getPort();
-		this.clientMessage = new String(recPacket.getData(), recPacket.getOffset(), recPacket.getLength());
+	public ClientHandler(DatagramPacket recPacket, DatagramSocket serverSocket) {
+		try {
+			// deserialize Mensagem object
+			ByteArrayInputStream byteStream = new ByteArrayInputStream(recPacket.getData());
+			ObjectInputStream objectIn = new ObjectInputStream(new BufferedInputStream(byteStream));
+			Mensagem requisicao = (Mensagem) objectIn.readObject();
+
+			// get IP and port from peer
+			requisicao.setAddress(recPacket.getAddress());
+			requisicao.setPort(recPacket.getPort());
+
+			this.requisicao = requisicao;
+			this.serverSocket = serverSocket;
+		} catch (Exception e) {
+
+		}
 	}
 
 	public void run() {
-		System.out.println(this.clientAddress);
-		System.out.println(this.clientPort);
-		System.out.println(this.clientMessage);
+		if (this.requisicao.getMessage().equals("JOIN")) { // JOIN_OK
+			Mensagem resposta = new Mensagem();
+			resposta.setMessage("JOIN_OK");
+			Servidor.send(resposta, this.serverSocket, this.requisicao.getAddress(), this.requisicao.getPort());
+		}
 	}
 }
 
-/*
- * Requisicoes: JOIN: recebe nome dos arquivos do peer, reponde JOIN_OK
- *
- * LEAVE: remove informacoes do peer, responde LEAVE_OK
- *
- * SEARCH: recebe nome do arquivo, responde com lista de peers que possui
- * arquivo
- *
- * UPDATE: recebe de um peer que baixou o arquivo, atualiza info deste peer,
- * responde UPDATE_OK
- *
- * ALIVE: enviado a cada 30 segundo aos peers, recebe ALIVE_OK, caso não, remove
- * informações do peer
- */
+// Requisicoes: JOIN: recebe nome dos arquivos do peer, reponde JOIN_OK
+//
+// LEAVE: remove informacoes do peer, responde LEAVE_OK
+//
+// SEARCH: recebe nome do arquivo, responde com lista de peers que possui
+// arquivo
+//
+// UPDATE: recebe de um peer que baixou o arquivo, atualiza info deste peer,
+// responde UPDATE_OK
+//
+// ALIVE: enviado a cada 30 segundo aos peers, recebe ALIVE_OK, caso não, remove
+// informações do peer

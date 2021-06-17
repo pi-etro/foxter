@@ -1,80 +1,101 @@
-import java.util.Scanner;
-import java.net.*;
-import Mensagem.*;
+import java.util.*;
 import java.io.*;
+import java.net.*;
+import java.lang.Thread;
+import Mensagem.*;
 
-// quando enviar LEAVE?
+
 @SuppressWarnings("resource") // removes never closer warnings
 
 public class Peer {
 
 	public static void main(String args[]) throws Exception {
 
+		// default server IP and port
 		InetAddress serverAddress = InetAddress.getByName("127.0.0.1");
 		int serverPort = 10098;
 
-		// server address input
-		/*
-		 * Scanner input = new Scanner(System.in);
-		 * System.out.print("Entre com o endereço IP deste peer: "); InetAddress
-		 * peerAddress = InetAddress.getByName(input.nextLine());
-		 * System.out.print("Entre com a porta deste peer: "); int peerPort =
-		 * Integer.parseInt(input.nextLine()); input.close();
-		 */
+		Scanner input = new Scanner(System.in);
 
-		InetAddress peerAddress = InetAddress.getByName("127.0.0.1"); // temporario
-		int peerPort = 55000; // temporario
+		// peer address
+		System.out.print("Entre com o endereço IP deste peer: ");
+		InetAddress peerAddress = InetAddress.getByName(input.nextLine());
+
+		// peer port
+		System.out.print("Entre com a porta deste peer: ");
+		int peerPort = Integer.parseInt(input.nextLine());
+
+		// peer folder
+		System.out.print("Entre com o endereço da pasta: ");
+		String folderPath = input.nextLine();
+		File[] listFiles = new File(folderPath).listFiles();
+		while (listFiles == null) {
+			System.out.print("Indereço inválido, insira novamente: ");
+			folderPath = input.nextLine();
+			listFiles = new File(folderPath).listFiles();
+		}
+
+		// peer file names
+		ArrayList<String> filesNames = new ArrayList<String>();
+		for (File f : listFiles) {
+			if (f.isFile())
+				filesNames.add(f.getName());
+		}
+
+		// files.forEach(System.out::println); // temporario
+		// InetAddress peerAddress = InetAddress.getByName("127.0.0.1"); // temporario
+		// int peerPort = 55000; // temporario
 
 		DatagramSocket clientSocket = new DatagramSocket();
 
+		// initialize a thread for server messages
 		ServerHandler server = new ServerHandler(clientSocket);
 		server.start();
 
+		// options menu
 		Scanner in = new Scanner(System.in);
 		while (true) {
-			System.out.print("MENU:\n1 JOIN\n2 SEARCH\n3 DOWNLOAD\nEntre com a opção: ");
-			int option = in.nextInt();
-			switch (option) {
-			case 1:
-				// JOIN
-				Mensagem requisicao = new Mensagem();
-				requisicao.setMessage("JOIN");
+			System.out.print("MENU:\n[1] JOIN\n[2] SEARCH\n[3] DOWNLOAD\nEntre com a opção: ");
+			try {
+				int option = in.nextInt();
+				switch (option) {
+				case 1: // JOIN
 
-				Mensagem resposta = new Mensagem();
+					// send request and list of files
+					Mensagem requisicao = new Mensagem();
+					requisicao.setMessage("JOIN");
+					requisicao.setList(filesNames);
 
-				send(requisicao, clientSocket, serverAddress, serverPort);
-				long sent = System.nanoTime();
-				while (!resposta.getMessage().equals("JOIN_OK")) {
-					if (System.nanoTime() - sent >= 15 * Math.pow(10, 9)) {
-						send(requisicao, clientSocket, serverAddress, serverPort);
-						sent = System.nanoTime();
-					}
-					resposta = server.getResposta();
-					System.out.println(resposta.getMessage());
+					// waits for server response
+					waitResponse("JOIN_OK", server, requisicao, clientSocket, serverAddress, serverPort); // blocking
+
+					System.out.println("Sou peer " + peerAddress + ":" + peerPort);
+					break;
+				case 2: // SEARCH
+
+					break;
+				case 3: // DOWNLOAD
+
+					break;
+				case 4: // LEAVE
+					// quando enviar LEAVE?
+					break;
+				default:
+					System.out.println("Opção inválida!");
 				}
-				break;
-			case 2:
-				// SEARCH
-				break;
-			case 3:
-				// DOWNLOAD
-				break;
-			case 4:
-				// LEAVE
-				break;
-			default:
+			} catch (Exception e) {
 				System.out.println("Opção inválida!");
+				in.next();
 			}
 		}
 
 	}
 
+	// serialize and send Mensagem object
 	private static void send(Mensagem m, DatagramSocket s, InetAddress a, int p) {
 		try {
-			// serialize
+			// serialize Mensagem object
 			ByteArrayOutputStream byteStream = new ByteArrayOutputStream(1024);
-			// ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-			// ObjectOutput objectOut = new ObjectOutputStream(byteStream);
 			ObjectOutputStream objectOut = new ObjectOutputStream(new BufferedOutputStream(byteStream));
 			objectOut.flush();
 			objectOut.writeObject(m);
@@ -89,6 +110,36 @@ public class Peer {
 
 		}
 	}
+
+	// waits for server response expected
+	// send new requests in timeout
+	private static Mensagem waitResponse(String r, ServerHandler sh, Mensagem m, DatagramSocket s, InetAddress a, int p){
+
+		int timeout = 15; // time in seconds to send a new request
+
+		// first request
+		send(m, s, a, p);
+
+		// periodically check response and sends new request on timeout
+		int t = 0;
+		while (!sh.getResposta().getMessage().equals(r)) {
+			try{
+				Thread.sleep(100);
+				t++;
+			}
+			catch (Exception e){
+
+			}
+			if ( t == timeout*10){
+				send(m, s, a, p);
+				t = 0;
+			}
+		}
+
+		Mensagem resposta = sh.getResposta();
+		sh.setResposta(new Mensagem());
+		return resposta;
+	}
 }
 
 class ServerHandler extends Thread {
@@ -102,22 +153,18 @@ class ServerHandler extends Thread {
 	}
 
 	public void run() {
-		// se for pacote ALIVE ativa flag para responder
-		// caso contrario repassa pacote para o menu
 		try {
-			// awaits server contact
+			// waits server contact
 			while (true) {
+
 				byte[] recBuffer = new byte[1024];
 				DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
-
 				clientSocket.receive(recPacket); // blocking
 
+				// deserialize Mensagem object
 				ByteArrayInputStream byteStream = new ByteArrayInputStream(recBuffer);
 				ObjectInputStream objectIn = new ObjectInputStream(new BufferedInputStream(byteStream));
-				// ObjectInputStream objectIn = new ObjectInputStream(new
-				// ByteArrayInputStream(recPacket));
 				Mensagem resposta = (Mensagem) objectIn.readObject();
-				// objectIn.close();
 
 				if (resposta.getMessage().equals("ALIVE")) {
 					AliveHandler answer = new AliveHandler();
