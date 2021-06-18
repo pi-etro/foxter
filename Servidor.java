@@ -1,22 +1,28 @@
+
+// controle ALIVE ainda nao implementado
+
 import java.util.*;
 import java.io.*;
 import java.net.*;
 import Mensagem.*;
 
-@SuppressWarnings("resource") // removes never closer warnings
+//@SuppressWarnings("resource") // removes never closer warnings
 
 public class Servidor {
 
 	public static String serverAddress;
 	public static int serverPort = 10098; // default server port
 
+	public static Hashtable<String, ArrayList<String>> peerFiles = new Hashtable<>(); // table with peers and files
+	public static Hashtable<String, Long> peerAlive = new Hashtable<>(); // table with peers and last alive responses
+
 	public static void main(String args[]) throws Exception {
 
 		// address input
-		// Scanner input = new Scanner(System.in);
-		// System.out.print("Entre com o endereço IP do servidor: ");
-		// Servidor.serverAddress = input.nextLine();
-		// input.close();
+		Scanner input = new Scanner(System.in);
+		System.out.print("Entre com o endereço IP do servidor: ");
+		Servidor.serverAddress = input.nextLine();
+		input.close();
 
 		DatagramSocket serverSocket = new DatagramSocket(serverPort);
 
@@ -25,7 +31,6 @@ public class Servidor {
 			try {
 				byte[] recBuffer = new byte[1024];
 				DatagramPacket recPacket = new DatagramPacket(recBuffer, recBuffer.length);
-				System.out.print("Esperando resposta");
 				serverSocket.receive(recPacket); // blocking
 
 				// initialize a thread for this request
@@ -56,6 +61,13 @@ public class Servidor {
 
 		}
 	}
+
+	public static void printFiles(ArrayList<String> files) {
+		for (String file : files) {
+			System.out.print(" " + file);
+		}
+		System.out.print("\n");
+	}
 }
 
 class ClientHandler extends Thread {
@@ -82,23 +94,78 @@ class ClientHandler extends Thread {
 	}
 
 	public void run() {
-		if (this.requisicao.getMessage().equals("JOIN")) { // JOIN_OK
-			Mensagem resposta = new Mensagem();
+
+		String req = this.requisicao.getMessage();
+		String ip_porta = this.requisicao.getAddress().toString().replace("/", "") + ":" + String.valueOf(this.requisicao.getPort());
+		Mensagem resposta = new Mensagem();
+
+		if (req.equals("ALIVE_OK")) { // ALIVE
+			if (Servidor.peerAlive.containsKey(ip_porta)) {
+				Servidor.peerAlive.replace(ip_porta, System.nanoTime());
+			}
+		} else if (req.equals("JOIN")) { // JOIN_OK
+			if (!Servidor.peerFiles.containsKey(ip_porta)) {
+				// adds peer ip:port and file list to table
+				Servidor.peerFiles.put(ip_porta, this.requisicao.getList());
+
+				// adds peer to alive time table
+				Servidor.peerAlive.put(ip_porta, System.nanoTime());
+			}
+
+			// send confirmation
 			resposta.setMessage("JOIN_OK");
+			resposta.setAddress(this.requisicao.getAddress());
+			resposta.setPort(this.requisicao.getPort());
+			Servidor.send(resposta, this.serverSocket, resposta.getAddress(), resposta.getPort());
+
+			System.out.print("Peer " + ip_porta + " adicionado com arquivos");
+			Servidor.printFiles(this.requisicao.getList());
+		} else if (req.equals("LEAVE")) { // LEAVE_OK
+			if (Servidor.peerFiles.containsKey(ip_porta)) {
+				// remove peer data from table
+				Servidor.peerFiles.remove(ip_porta);
+			}
+
+			// send confirmation
+			resposta.setMessage("LEAVE_OK");
+			Servidor.send(resposta, this.serverSocket, this.requisicao.getAddress(), this.requisicao.getPort());
+		} else if (req.equals("SEARCH")) { // SEARCH_OK
+
+			ArrayList<String> peerList = new ArrayList<String>();
+
+			if (Servidor.peerFiles.containsKey(ip_porta)) {
+
+				System.out.println("Peer " + ip_porta + " solicitou arquivo " + requisicao.getList().get(0));
+
+				// search for files in each peer
+				Set<String> peers = Servidor.peerFiles.keySet();
+				for (String peer : peers) {
+					if (!peer.equals(ip_porta) && (Servidor.peerFiles.get(peer)).contains(requisicao.getList().get(0))) {
+						peerList.add(peer);
+					}
+				}
+			} else {
+				peerList = new ArrayList<String>(); // only sends list of peers if peer already made join
+			}
+
+			// send list of peers with file
+			resposta.setMessage("SEARCH_OK");
+			resposta.setList(peerList);
+			Servidor.send(resposta, this.serverSocket, this.requisicao.getAddress(), this.requisicao.getPort());
+		} else if (req.equals("UPDATE")) { // UPDATE_OK
+			if (Servidor.peerFiles.containsKey(ip_porta)) {
+
+				if (!Servidor.peerFiles.get(ip_porta).contains(requisicao.getList().get(0))) {
+					// add a new file to peer file list
+					ArrayList<String> updatedList = Servidor.peerFiles.get(ip_porta);
+					updatedList.add(requisicao.getList().get(0));
+					Servidor.peerFiles.replace(ip_porta, updatedList);
+				}
+			}
+
+			// send confirmation
+			resposta.setMessage("UPDATE_OK");
 			Servidor.send(resposta, this.serverSocket, this.requisicao.getAddress(), this.requisicao.getPort());
 		}
 	}
 }
-
-// Requisicoes: JOIN: recebe nome dos arquivos do peer, reponde JOIN_OK
-//
-// LEAVE: remove informacoes do peer, responde LEAVE_OK
-//
-// SEARCH: recebe nome do arquivo, responde com lista de peers que possui
-// arquivo
-//
-// UPDATE: recebe de um peer que baixou o arquivo, atualiza info deste peer,
-// responde UPDATE_OK
-//
-// ALIVE: enviado a cada 30 segundo aos peers, recebe ALIVE_OK, caso não, remove
-// informações do peer

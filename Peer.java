@@ -1,11 +1,14 @@
+
+// ALIVE_OK ainda nao implementado
+// Downloads TCP de outros peers ainda nao implementado
+
 import java.util.*;
 import java.io.*;
 import java.net.*;
 import java.lang.Thread;
 import Mensagem.*;
 
-
-@SuppressWarnings("resource") // removes never closer warnings
+// @SuppressWarnings("resource") // removes never closer warnings
 
 public class Peer {
 
@@ -36,15 +39,11 @@ public class Peer {
 		}
 
 		// peer file names
-		ArrayList<String> filesNames = new ArrayList<String>();
+		ArrayList<String> fileNames = new ArrayList<String>();
 		for (File f : listFiles) {
 			if (f.isFile())
-				filesNames.add(f.getName());
+				fileNames.add(f.getName());
 		}
-
-		// files.forEach(System.out::println); // temporario
-		// InetAddress peerAddress = InetAddress.getByName("127.0.0.1"); // temporario
-		// int peerPort = 55000; // temporario
 
 		DatagramSocket clientSocket = new DatagramSocket();
 
@@ -58,34 +57,43 @@ public class Peer {
 			System.out.print("MENU:\n[1] JOIN\n[2] SEARCH\n[3] DOWNLOAD\nEntre com a opção: ");
 			try {
 				int option = in.nextInt();
-				switch (option) {
-				case 1: // JOIN
+				if (option == 1) { // JOIN
 
 					// send request and list of files
 					Mensagem requisicao = new Mensagem();
 					requisicao.setMessage("JOIN");
-					requisicao.setList(filesNames);
+					requisicao.setList(fileNames);
 
 					// waits for server response
-					waitResponse("JOIN_OK", server, requisicao, clientSocket, serverAddress, serverPort); // blocking
+					Mensagem resposta = waitResponse("JOIN_OK", server, requisicao, clientSocket, serverAddress, serverPort); // blocking
 
-					System.out.println("Sou peer " + peerAddress + ":" + peerPort);
-					break;
-				case 2: // SEARCH
+					System.out.print("Sou peer " + resposta.getAddress().toString().replace("/", "") + ":" + resposta.getPort() + " com arquivos");
+					printList(fileNames);
+				} else if (option == 2) { // SEARCH
 
-					break;
-				case 3: // DOWNLOAD
+					// send request and name of file to search
+					Mensagem requisicao = new Mensagem();
+					requisicao.setMessage("SEARCH");
 
-					break;
-				case 4: // LEAVE
-					// quando enviar LEAVE?
-					break;
-				default:
+					ArrayList<String> l = new ArrayList<String>();
+					System.out.print("Entre com o nome do arquivo desejado: ");
+					l.add(input.nextLine());
+					requisicao.setList(l);
+
+					// waits for server response
+					Mensagem resposta = waitResponse("SEARCH_OK", server, requisicao, clientSocket, serverAddress, serverPort); // blocking
+
+					System.out.print("Peers com arquivo solicitado:");
+					printList(resposta.getList());
+				} else if (option == 3) { // DOWNLOAD
+
+				} else if (option == 4) { // LEAVE option needed?
+
+				} else {
 					System.out.println("Opção inválida!");
 				}
 			} catch (Exception e) {
 				System.out.println("Opção inválida!");
-				in.next();
 			}
 		}
 
@@ -113,7 +121,7 @@ public class Peer {
 
 	// waits for server response expected
 	// send new requests in timeout
-	private static Mensagem waitResponse(String r, ServerHandler sh, Mensagem m, DatagramSocket s, InetAddress a, int p){
+	private static Mensagem waitResponse(String r, ServerHandler sh, Mensagem m, DatagramSocket s, InetAddress a, int p) {
 
 		int timeout = 15; // time in seconds to send a new request
 
@@ -123,14 +131,13 @@ public class Peer {
 		// periodically check response and sends new request on timeout
 		int t = 0;
 		while (!sh.getResposta().getMessage().equals(r)) {
-			try{
+			try {
 				Thread.sleep(100);
 				t++;
-			}
-			catch (Exception e){
+			} catch (Exception e) {
 
 			}
-			if ( t == timeout*10){
+			if (t == timeout * 10) {
 				send(m, s, a, p);
 				t = 0;
 			}
@@ -139,6 +146,13 @@ public class Peer {
 		Mensagem resposta = sh.getResposta();
 		sh.setResposta(new Mensagem());
 		return resposta;
+	}
+
+	private static void printList(ArrayList<String> lista) {
+		for (String item : lista) {
+			System.out.print(" " + item);
+		}
+		System.out.print("\n");
 	}
 }
 
