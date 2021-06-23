@@ -1,5 +1,4 @@
 
-// ALIVE_OK ainda nao implementado
 // Downloads TCP de outros peers ainda nao implementado
 
 import java.util.*;
@@ -103,7 +102,7 @@ public class Peer {
     }
 
     // serialize and send Mensagem object
-    private static void send(Mensagem m, DatagramSocket s, InetAddress a, int p) {
+    public static void send(Mensagem m, DatagramSocket s, InetAddress a, int p) {
         try {
             // serialize Mensagem object
             ByteArrayOutputStream byteStream = new ByteArrayOutputStream(1024);
@@ -185,7 +184,7 @@ class ServerHandler extends Thread {
                 Mensagem resposta = (Mensagem) objectIn.readObject();
 
                 if (resposta.getMessage().equals("ALIVE")) {
-                    AliveHandler answer = new AliveHandler();
+                    AliveHandler answer = new AliveHandler(this.clientSocket, recPacket.getAddress(), recPacket.getPort());
                     answer.start();
                 } else {
                     setResposta(resposta);
@@ -206,8 +205,26 @@ class ServerHandler extends Thread {
 }
 
 class AliveHandler extends Thread {
+
+    private DatagramSocket clientSocket;
+    private InetAddress serverAddress;
+    private int serverPort;
+
+    public AliveHandler(DatagramSocket socket, InetAddress address, int port) {
+        this.clientSocket = socket;
+        this.serverAddress = address;
+        this.serverPort = port;
+    }
+
     public void run() {
-        System.out.println("thread AliveHandler");
+        try {
+            Mensagem resposta = new Mensagem();
+            resposta.setMessage("ALIVE_OK");
+
+            Peer.send(resposta, this.clientSocket, this.serverAddress, this.serverPort);
+        } catch (Exception e) {
+
+        }
     }
 }
 

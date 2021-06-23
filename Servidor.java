@@ -1,6 +1,3 @@
-
-// controle ALIVE ainda nao implementado
-
 import java.util.*;
 import java.io.*;
 import java.net.*;
@@ -14,7 +11,7 @@ public class Servidor {
     public static int serverPort = 10098; // default server port
 
     public static Hashtable<String, ArrayList<String>> peerFiles = new Hashtable<>(); // table with peers and files
-    public static Hashtable<String, Long> peerAlive = new Hashtable<>(); // table with peers and last alive responses
+    public static Hashtable<String, Boolean> peerAlive = new Hashtable<>(); // table with peers and last alive responses
 
     public static void main(String args[]) throws Exception {
 
@@ -25,6 +22,9 @@ public class Servidor {
         input.close();
 
         DatagramSocket serverSocket = new DatagramSocket(serverPort);
+
+        peerWatchdog wd = new peerWatchdog(serverSocket);
+        wd.start();
 
         // waits peers UDP contact
         while (true) {
@@ -102,7 +102,7 @@ class ClientHandler extends Thread {
 
         if (req.equals("ALIVE_OK")) { // ALIVE
             if (Servidor.peerAlive.containsKey(ip_porta)) {
-                Servidor.peerAlive.replace(ip_porta, System.nanoTime());
+                Servidor.peerAlive.replace(ip_porta, true);
             }
         } else if (req.equals("JOIN")) { // JOIN_OK
             if (!Servidor.peerFiles.containsKey(ip_porta)) {
@@ -110,7 +110,7 @@ class ClientHandler extends Thread {
                 Servidor.peerFiles.put(ip_porta, this.requisicao.getList());
 
                 // adds peer to alive time table
-                Servidor.peerAlive.put(ip_porta, System.nanoTime());
+                Servidor.peerAlive.put(ip_porta, true);
             }
 
             // send confirmation
@@ -125,6 +125,7 @@ class ClientHandler extends Thread {
             if (Servidor.peerFiles.containsKey(ip_porta)) {
                 // remove peer data from table
                 Servidor.peerFiles.remove(ip_porta);
+                Servidor.peerAlive.remove(ip_porta);
             }
 
             // send confirmation
@@ -168,6 +169,47 @@ class ClientHandler extends Thread {
             // send confirmation
             resposta.setMessage("UPDATE_OK");
             Servidor.send(resposta, this.serverSocket, this.requisicao.getAddress(), this.requisicao.getPort());
+        }
+    }
+}
+
+class peerWatchdog extends Thread {
+
+    public DatagramSocket serverSocket;
+
+    public peerWatchdog(DatagramSocket serverSocket) {
+        this.serverSocket = serverSocket;
+    }
+
+    public void run() {
+
+        Mensagem alive = new Mensagem();
+        alive.setMessage("ALIVE");
+
+        // check if peers are alive every 30 seconds
+        while (true) {
+            for (String peer : Servidor.peerAlive.keySet()) {
+                try {
+                    if (!Servidor.peerAlive.get(peer)) {
+                        Servidor.peerAlive.remove(peer);
+                        System.out.print("Peer " + peer + " morto. Eliminando seus arquivos");
+                        Servidor.printFiles(Servidor.peerFiles.get(peer));
+                        Servidor.peerAlive.remove(peer);
+                        Servidor.peerFiles.remove(peer);
+                    } else {
+                        Servidor.send(alive, this.serverSocket, InetAddress.getByName(peer.split(":")[0]),
+                                Integer.parseInt(peer.split(":")[1]));
+                        Servidor.peerAlive.replace(peer, false);
+                    }
+                } catch (Exception e) {
+
+                }
+            }
+            try {
+                Thread.sleep(30000);
+            } catch (Exception e) {
+
+            }
         }
     }
 }
