@@ -1,13 +1,10 @@
-
-// Downloads TCP de outros peers ainda nao implementado !!!
-
 import java.util.*;
 import java.io.*;
 import java.net.*;
 import java.lang.Thread;
 import Mensagem.*;
 
-@SuppressWarnings("resource") // removes never closer warnings
+@SuppressWarnings({ "resource", "unused" }) // removes never closed and not used warnings
 
 public class Peer {
 
@@ -48,9 +45,10 @@ public class Peer {
         String filetoDownload = "";
         ArrayList<String> peerswithFile = new ArrayList<String>();
 
-        DatagramSocket clientSocket = new DatagramSocket(peerPort); // implementar uso da porta especificada !!!
+        DatagramSocket clientSocket = new DatagramSocket(peerPort);
 
-        PeerRequests pr = new PeerRequests(peerPort);
+        // initialize a thread for peer download requests
+        PeerRequests pr = new PeerRequests(peerPort, folderPath);
         pr.start();
 
         // initialize a thread for server messages
@@ -63,6 +61,7 @@ public class Peer {
             System.out.print("MENU:\n[1] JOIN\n[2] SEARCH\n[3] DOWNLOAD\n[4] LEAVE\nEntre com a opção: ");
             try {
                 int option = in.nextInt();
+
                 if (option == 1) { // JOIN
 
                     // send request and list of files
@@ -77,6 +76,7 @@ public class Peer {
                     System.out.print("Sou peer " + resposta.getAddress().toString().replace("/", "") + ":"
                             + resposta.getPort() + " com arquivos");
                     printList(fileNames);
+
                 } else if (option == 2) { // SEARCH
 
                     // send request and name of file to search
@@ -97,48 +97,79 @@ public class Peer {
 
                     System.out.print("Peers com arquivo solicitado:");
                     printList(resposta.getList());
+
                 } else if (option == 3) { // DOWNLOAD
-                    Boolean received = false;
 
-                    // try to download file from all peers
-                    // ask again if all peers deny
-                    while (!received) {
-                        for (int i = 0; i < peerswithFile.size(); i++) {
-                            String ip = peerswithFile.get(i).split(":")[0];
-                            int port = Integer.parseInt(peerswithFile.get(i).split(":")[1]);
+                    // download available only after search
+                    if (!filetoDownload.isEmpty()) {
+                        Boolean received = false;
 
-                            // try tcp connection
-                            Socket s = new Socket(ip, port);
-                            OutputStream os = s.getOutputStream();
-                            DataOutputStream writer = new DataOutputStream(os);
+                        // try to download file from all peers
+                        // ask again if all peers deny
+                        while (!received) {
+                            for (int i = 0; i < peerswithFile.size(); i++) {
 
-                            // send name of the desired file
-                            writer.writeBytes(filetoDownload+"\n");
+                                String ip = peerswithFile.get(i).split(":")[0];
+                                int port = Integer.parseInt(peerswithFile.get(i).split(":")[1]);
 
-                            DataInputStream is = new DataInputStream(s.getInputStream());
-                            FileOutputStream fos = new FileOutputStream("/home/pi/peer1/"+filetoDownload); // alterar!!!
+                                // tcp connection
+                                Socket s = new Socket(ip, port);
+                                OutputStream os = s.getOutputStream();
+                                DataOutputStream writer = new DataOutputStream(os);
 
-                            byte[] buffer = new byte[1024];
+                                // send name of the desired file
+                                writer.writeBytes(filetoDownload + "\n");
 
-                            int read;
-                            while ((read = is.read(buffer)) != -1) {
-                                fos.write(buffer, 0, read);
-                                System.out.println("entrou no laço");
+                                DataInputStream is = new DataInputStream(s.getInputStream());
+                                FileOutputStream fos = new FileOutputStream(
+                                        new File(folderPath, filetoDownload).getAbsolutePath());
+                                byte[] buffer = new byte[1024];
+
+                                // receives data until EOF
+                                int read;
+                                while ((read = is.read(buffer)) != -1) {
+                                    fos.write(buffer, 0, read);
+                                }
+                                fos.close();
+                                is.close();
+
+                                // read header to check if download was denied
+                                byte[] b = new byte[15];
+                                InputStream fis = new FileInputStream(
+                                        new File(folderPath, filetoDownload).getAbsolutePath());
+                                fis.read(b);
+
+                                if (!new String(b).equals("DOWNLOAD_NEGADO")) {
+                                    received = true;
+                                    System.out.println("Arquivo " + filetoDownload + " baixado com sucesso na pasta " + folderPath);
+                                    break;
+                                } else {
+
+                                    // delete temporary file with DOWNLOAD_NEGADO message
+                                    new File(folderPath, filetoDownload).delete();
+
+                                    int index = i == peerswithFile.size() - 1 ? 0 : i + 1;
+                                    System.out.println(
+                                            "Peer " + ip + ":" + port + " negou o download, pedindo agora para o peer "
+                                                    + peerswithFile.get(index));
+                                }
+                                fis.close();
                             }
-
-                            fos.close();
-                            is.close();
-
-                            System.out.println("recebeu");
-                            received = true;
-
-                            // receive response, DOWNLOAD_NEGADO or total file size in bytes
-                            // if (!resposta.equals("DOWNLOAD_NEGADO")){
-
-                            // received = true;
-                            // break;
-                            // }
+                            // waits 10 seconds to start requesting again
+                            if (!received)
+                                Thread.sleep(10000);
                         }
+
+                        // send request to update
+                        Mensagem requisicao = new Mensagem();
+                        ArrayList<String> l = new ArrayList<String>();
+                        l.add(filetoDownload);
+                        requisicao.setMessage("UPDATE");
+                        requisicao.setList(l);
+
+                        // waits for server response
+                        Mensagem resposta = waitResponse("UPDATE_OK", server, requisicao, clientSocket, serverAddress,
+                                serverPort); // blocking
                     }
                 } else if (option == 4) { // LEAVE
 
@@ -151,12 +182,12 @@ public class Peer {
                             serverPort); // blocking
 
                     // nothing to print
+
                 } else {
                     System.out.println("Opção inválida!");
                 }
             } catch (Exception e) {
                 System.out.println("Opção inválida!");
-                e.printStackTrace();
             }
         }
 
@@ -283,6 +314,7 @@ class AliveHandler extends Thread {
             Mensagem resposta = new Mensagem();
             resposta.setMessage("ALIVE_OK");
 
+            // send message with alive confirmation
             Peer.send(resposta, this.clientSocket, this.serverAddress, this.serverPort);
         } catch (Exception e) {
 
@@ -290,12 +322,16 @@ class AliveHandler extends Thread {
     }
 }
 
+@SuppressWarnings("resource") // removes never closed warnings
+
 class PeerRequests extends Thread {
 
     private int port;
+    private String folderPath;
 
-    public PeerRequests(int p) {
+    public PeerRequests(int p, String f) {
         this.port = p;
+        this.folderPath = f;
     }
 
     public void run() {
@@ -305,14 +341,16 @@ class PeerRequests extends Thread {
             while (true) {
                 try {
                     Socket no = serverSocket.accept(); // blocking
-                    PeerHandler peer = new PeerHandler(no);
+
+                    // start a thread to handle the new peer request
+                    PeerHandler peer = new PeerHandler(no, this.folderPath);
                     peer.start();
                 } catch (Exception e) {
 
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+
         }
     }
 }
@@ -320,56 +358,49 @@ class PeerRequests extends Thread {
 class PeerHandler extends Thread {
 
     private Socket no;
+    private String folderPath;
 
-    public PeerHandler(Socket no) {
+    public PeerHandler(Socket no, String f) {
         this.no = no;
+        this.folderPath = f;
     }
 
     public void run() {
 
         try {
-            System.out.println("começou a thread de enviar");
+
             InputStreamReader is = new InputStreamReader(this.no.getInputStream());
             BufferedReader reader = new BufferedReader(is);
 
+            // receive the name of the file to send
             String filetoSend = reader.readLine();
-
-            System.out.println(filetoSend);
-
-            // verificar se possui arquivo
-
-            Random random = new Random();
 
             DataOutputStream os = new DataOutputStream(this.no.getOutputStream());
             byte[] buffer = new byte[1024];
 
             // randomly choose to send or not the file
-            // if (random.nextBoolean() && File("/home/pi/peer2/file_peer_2.txt").isFile())
-            // { // send
+            Random random = new Random();
 
-            FileInputStream fis = new FileInputStream("/home/pi/peer2/"+filetoSend); // passar path !!!
+            // if random is true and this peer has the file on the folder then send
+            if (random.nextBoolean() && new File(folderPath, filetoSend).isFile()) {
 
-            int read = 0;
-            while ((read = fis.read(buffer)) > 0) {
-                os.write(buffer, 0, read);
-                System.out.println("enviando");
+                FileInputStream fis = new FileInputStream(new File(folderPath, filetoSend).getAbsolutePath());
+
+                // send file
+                int read = 0;
+                while ((read = fis.read(buffer)) > 0) {
+                    os.write(buffer, 0, read);
+                }
+
+                fis.close();
+            } else { // send string DOWNLOAD_NEGADO
+                os.writeBytes("DOWNLOAD_NEGADO\n");
             }
-
-            fis.close();
             os.flush();
             os.close();
             this.no.close();
-            System.out.println("fechou");
         } catch (Exception e) {
-            e.printStackTrace();
+
         }
-        System.out.println("finalizou");
-
-        // } else { // DOWNLOAD_NEGADO
-
-        // }
-
-        // os.close();
-
     }
 }

@@ -3,7 +3,7 @@ import java.io.*;
 import java.net.*;
 import Mensagem.*;
 
-//@SuppressWarnings("resource") // removes never closer warnings
+//@SuppressWarnings("resource") // removes never closed warnings
 
 public class Servidor {
 
@@ -188,7 +188,8 @@ class peerWatchdog extends Thread {
 
         // check if peers are alive every 30 seconds
         while (true) {
-            for (String peer : Servidor.peerAlive.keySet()) {
+            Set<String> peers = Servidor.peerAlive.keySet();
+            for (String peer : peers) {
                 try {
                     if (!Servidor.peerAlive.get(peer)) {
                         Servidor.peerAlive.remove(peer);

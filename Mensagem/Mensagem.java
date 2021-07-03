@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.io.Serializable;
 
+@SuppressWarnings("serial") // serialVersionUID warnings
+
 public class Mensagem implements Serializable {
     private String message = " ";
     private InetAddress address;
