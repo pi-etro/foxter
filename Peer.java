@@ -100,8 +100,8 @@ public class Peer {
 
                 } else if (option == 3) { // DOWNLOAD
 
-                    // download available only after search
-                    if (!filetoDownload.isEmpty()) {
+                    // download available only after search and if exists peers with file
+                    if (!filetoDownload.isEmpty() && !peerswithFile.isEmpty()) {
                         Boolean received = false;
 
                         // try to download file from all peers
@@ -141,7 +141,9 @@ public class Peer {
 
                                 if (!new String(b).equals("DOWNLOAD_NEGADO")) {
                                     received = true;
-                                    System.out.println("Arquivo " + filetoDownload + " baixado com sucesso na pasta " + folderPath);
+                                    fileNames.add(filetoDownload);
+                                    System.out.println("Arquivo " + filetoDownload + " baixado com sucesso na pasta "
+                                            + folderPath);
                                     break;
                                 } else {
 

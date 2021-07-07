@@ -1,6 +1,7 @@
 import java.util.*;
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.*;
 import Mensagem.*;
 
 //@SuppressWarnings("resource") // removes never closed warnings
@@ -10,8 +11,8 @@ public class Servidor {
     public static String serverAddress;
     public static int serverPort = 10098; // default server port
 
-    public static Hashtable<String, ArrayList<String>> peerFiles = new Hashtable<>(); // table with peers and files
-    public static Hashtable<String, Boolean> peerAlive = new Hashtable<>(); // table with peers and last alive responses
+    public static ConcurrentHashMap<String, ArrayList<String>> peerFiles = new ConcurrentHashMap<>(); // peers and files
+    public static ConcurrentHashMap<String, Boolean> peerAlive = new ConcurrentHashMap<>(); // alive responses
 
     public static void main(String args[]) throws Exception {
 
@@ -188,8 +189,7 @@ class peerWatchdog extends Thread {
 
         // check if peers are alive every 30 seconds
         while (true) {
-            Set<String> peers = Servidor.peerAlive.keySet();
-            for (String peer : peers) {
+            for (String peer : Servidor.peerAlive.keySet()) {
                 try {
                     if (!Servidor.peerAlive.get(peer)) {
                         Servidor.peerAlive.remove(peer);
