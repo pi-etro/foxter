@@ -17,7 +17,7 @@ public class Peer {
         Scanner input = new Scanner(System.in);
 
         // peer address
-        System.out.print("Entre com o endereço IP deste peer: ");
+        System.out.print("Entre com o endereco IP deste peer: ");
         InetAddress peerAddress = InetAddress.getByName(input.nextLine());
 
         // peer port
@@ -25,11 +25,11 @@ public class Peer {
         int peerPort = Integer.parseInt(input.nextLine());
 
         // peer folder
-        System.out.print("Entre com o endereço da pasta: ");
+        System.out.print("Entre com o endereco da pasta: ");
         String folderPath = input.nextLine();
         File[] listFiles = new File(folderPath).listFiles();
         while (listFiles == null) {
-            System.out.print("Indereço inválido, insira novamente: ");
+            System.out.print("Endereco invalido, insira novamente: ");
             folderPath = input.nextLine();
             listFiles = new File(folderPath).listFiles();
         }
@@ -58,7 +58,7 @@ public class Peer {
         // options menu
         Scanner in = new Scanner(System.in);
         while (true) {
-            System.out.print("MENU:\n[1] JOIN\n[2] SEARCH\n[3] DOWNLOAD\n[4] LEAVE\nEntre com a opção: ");
+            System.out.print("MENU:\n[1] JOIN\n[2] SEARCH\n[3] DOWNLOAD\n[4] LEAVE\nEntre com a opcao: ");
             try {
                 int option = in.nextInt();
 
@@ -186,10 +186,10 @@ public class Peer {
                     // nothing to print
 
                 } else {
-                    System.out.println("Opção inválida!");
+                    System.out.println("Opcao invalida!");
                 }
             } catch (Exception e) {
-                System.out.println("Opção inválida!");
+                System.out.println("Opcao invalida!");
             }
         }
 

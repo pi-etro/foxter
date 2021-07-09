@@ -18,7 +18,7 @@ public class Servidor {
 
         // address input
         Scanner input = new Scanner(System.in);
-        System.out.print("Entre com o endereço IP do servidor: ");
+        System.out.print("Entre com o endereco IP do servidor: ");
         Servidor.serverAddress = input.nextLine();
         input.close();
 
