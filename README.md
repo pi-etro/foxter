@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/pi-etro/foxter">
-    <img src="https://raw.githubusercontent.com/pi-etro/foxter/main/img/foxter.svg" width="456">
+    <img src="https://raw.githubusercontent.com/pi-etro/foxter/main/img/foxter.svg" width="400">
   </a>
 </p>
 <p align="center">
@@ -10,11 +10,18 @@
         <img src="https://img.shields.io/badge/License-GPLv3-CB0000.svg" /></a>
 </p>
 
+<div align="center">
+  P2P CLI program for large file transfers
+</div>
+
+## Features
+
+Once the server is online, peers can join the network registering their ip, port and files on the server. 
+
 ## About
 
-Foxter is a P2P program for large file transfers.
+Foxter is a P2P CLI program for large file transfers.
 
 This project was developed for the UFABC Distributed Systems course, in which each student implemented a simplified version of [Napster](https://en.wikipedia.org/wiki/Napster_(pay_service)).
 
 **DISCLAIMER:** No 🦊 were injured during the development of this program.
-
